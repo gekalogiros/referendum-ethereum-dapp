@@ -14,6 +14,16 @@ contract('Referendum', function(accounts){
             underTest = await Referendum.new(referendumEndDateInSeconds);
         });
 
+        it('should be open for people to vote', async() => {
+            // given:
+            let candidate = 1;
+
+            // then:
+            let response = await underTest.vote(candidate);
+
+            await assertEventOfType(response, 'VoteApplied', 0)
+        })
+
         it('should forbid people knowing the current referendum status before the end date', async() => {
             // given:
             let candidate = 1;
@@ -95,7 +105,10 @@ contract('Referendum', function(accounts){
             return;
         }
         assert.fail('Expected throw not received');
+    }
 
+    async function assertEventOfType(response, eventName, index) {
+        assert.equal(response.logs[index].event, eventName, eventName + ' event should fire.');
     }
 
 });
