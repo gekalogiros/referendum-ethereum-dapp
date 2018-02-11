@@ -1,42 +1,78 @@
 var Referendum = artifacts.require("./Referendum.sol");
 
-contract('Referendum contract', function(accounts){
+contract('Referendum', function(accounts){
 
     var underTest;
 
-    beforeEach(async function() {
-        underTest = await Referendum.new();
-    });
+    describe('taking place in the future', async => {
 
-    it('should provide the total number of votes for candidate', async() => {
-        // given:
-        let candidate = 1;
         let referendumEndDate = new Date(now() + days(2)).getTime();
+
         let referendumEndDateInSeconds = Math.floor(referendumEndDate / 1000);
 
-        // when:
-        await underTest.setReferendumDate(referendumEndDateInSeconds);
-        let totalVotesForCandidate = await underTest.getVotesForCandidate(candidate);
+        beforeEach(async function() {
+            underTest = await Referendum.new(referendumEndDateInSeconds);
+        });
 
-        // then:
-        assert.equal(totalVotesForCandidate.toNumber(), 0);
+        it('should forbid people knowing the current referendum status before the end date', async() => {
+            // given:
+            let candidate = 1;
+
+            // then:
+            await expectThrow(underTest.getVotesForCandidate(candidate))
+        })
+
+        it('should provide a referendum date', async() => {
+
+            // when:
+            let referendumDate = await underTest.getReferendumDate();
+
+            // then:
+            assert.equal(referendumDate.toNumber(), referendumEndDateInSeconds);
+        })
+
+        it('should provide to chairman only the total number of votes so far', async() => {
+            // when:
+            let totalVotes = await underTest.getNumberOfVoters();
+
+            // then:
+            assert.equal(totalVotes.toNumber(), 0)
+        })
+
+        it('should forbid anyone but chairman to know the total number of voters while referendum is still active', async() => {
+            await expectThrow(underTest.getNumberOfVoters({"from" : accounts[1]}))
+        })
     })
 
-    it('should set a referendum date', async() => {
-        // given:
-        let referendumEndDate = new Date(now() + days(2)).getTime();
+    describe('already completed', async => {
+
+        let referendumEndDate = new Date(now() - days(2)).getTime();
+
         let referendumEndDateInSeconds = Math.floor(referendumEndDate / 1000);
 
-        // when:
-        await underTest.setReferendumDate(referendumEndDateInSeconds);
-        let referendumDate = await underTest.getReferendumDate();
+        beforeEach(async function() {
+            underTest = await Referendum.new(referendumEndDateInSeconds);
+        });
 
-        // then:
-        assert.equal(referendumDate.toNumber(), referendumEndDateInSeconds);
-    })
+        it('should provide the total number of votes for candidate', async() => {
+            // given:
+            let candidate = 1;
 
-    it('should fail if someone who is not the owner tries to set referendum date', async() => {
-        await expectThrow(underTest.setReferendumDate(new Date().getTime(), {"from" : accounts[1]} ));
+            // when:
+            let totalVotesForCandidate = await underTest.getVotesForCandidate(candidate);
+
+            // then:
+            assert.equal(totalVotesForCandidate.toNumber(), 0);
+        })
+
+        it('should provide a referendum date', async() => {
+
+            // when:
+            let referendumDate = await underTest.getReferendumDate();
+
+            // then:
+            assert.equal(referendumDate.toNumber(), referendumEndDateInSeconds);
+        })
     })
 
     function days(x){
